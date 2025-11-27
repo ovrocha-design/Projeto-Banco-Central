@@ -1,0 +1,136 @@
+import java.util.Scanner;
+import java.time.LocalTime;
+public class teste_Anti_golpe {
+    private static final String[] LISTA_NEGRA = {
+            "11111111-aaaa-0000-xxxx-000000000001",
+            "22222222-bbbb-1111-yyyy-000000000002",
+            "fraude@exemplo.com",
+            "+5511999998888"
+    };
+    private static final int LIMITE_BLOQUEIO = 70;
+    private static final int PONT_LISTA_NEGRA = 100;
+    private static final int PONT_DEVOLUCAO_DIFERENTE = 50;
+    private static final int PONT_DESTINATARIO_NOVO = 30;
+    private static final int PONT_VALOR_ALTO = 20;
+    private static final int PONT_TIPO_ALEATORIA = 40;
+    private static final int PONT_HORARIO_SUSPEITO = 10;
+    public static boolean estaNaListaNegra(String chave) {
+        for (int i = 0; i < LISTA_NEGRA.length; i++) {
+            if (LISTA_NEGRA[i].equalsIgnoreCase(chave.trim())) {
+                return true;
+            }
+        }
+        return false;
+    }
+    public static boolean horarioSuspeito() {
+        LocalTime agora = LocalTime.now();
+        LocalTime inicioDia = LocalTime.of(6, 0);
+        LocalTime fimDia = LocalTime.of(18, 0);
+        return agora.isBefore(inicioDia) || agora.isAfter(fimDia);
+    }
+    public static int calcularPontuacaoRisco(String chave, String devolucao,
+                                             String tipo, String status, double valor) {
+        int pontos = 0;
+        if (estaNaListaNegra(chave)) {
+            pontos += PONT_LISTA_NEGRA;
+        }
+        if (!devolucao.isEmpty() && !chave.equals(devolucao)) {
+            pontos += PONT_DEVOLUCAO_DIFERENTE;
+        }
+        switch (tipo.toUpperCase()) {
+            case "ALEATORIA":
+                pontos += PONT_TIPO_ALEATORIA;
+                break;
+            case "CPF":
+            case "CNPJ":
+            case "EMAIL":
+            case "TELEFONE":
+                break;
+            default:
+                pontos += 10;
+                break;
+        }
+        if (status.equalsIgnoreCase("novo") || status.equalsIgnoreCase("incomum")) {
+            pontos += PONT_DESTINATARIO_NOVO;
+        }
+        if (valor > 5000.0) {
+            pontos += PONT_VALOR_ALTO;
+        }
+        if (horarioSuspeito()) {
+            pontos += PONT_HORARIO_SUSPEITO;
+        }
+        return pontos;
+    }
+    public static boolean deveBloquear(int pontuacao) {
+        return pontuacao >= LIMITE_BLOQUEIO;
+    }
+    public static void main(String[] args) {
+        Scanner entrada = new Scanner(System.in);
+        System.out.println("=== SISTEMA ANTI-GOLPE PIX (VERSÃO DIDÁTICA) ===");
+        int continuar;
+        do {
+            System.out.println("\nDigite os dados da transação:");
+            System.out.print("Chave PIX: ");
+            String chave = entrada.nextLine().trim();
+            System.out.print("Tipo da chave (CPF/CNPJ/EMAIL/TELEFONE/ALEATORIA): ");
+            String tipo = entrada.nextLine().trim();
+            System.out.print("Chave de devolução (opcional): ");
+            String devolucao = entrada.nextLine().trim();
+            System.out.print("Status do destinatário (novo/incomum/regular): ");
+            String status = entrada.nextLine().trim();
+            double valor = 0.0;
+            boolean valido = false;
+            do {
+                try {
+                    System.out.print("Valor da transação (R$): ");
+                    String textoValor = entrada.nextLine().trim();
+                    textoValor = textoValor.replace(",", ".");
+                    valor = Double.parseDouble(textoValor);
+                    if (valor < 0) {
+                        System.out.println("Valor inválido. Digite um número positivo.");
+                    } else {
+                        valido = true;
+                    }
+
+                } catch (NumberFormatException e) {
+                    System.out.println("Formato inválido! Use apenas números.");
+                }
+            } while (!valido);
+            int pontuacao = calcularPontuacaoRisco(chave, devolucao, tipo, status, valor);
+            System.out.println("\n=== RESULTADO ===");
+            System.out.println("Pontuação total: " + pontuacao);
+            if (estaNaListaNegra(chave)) {
+                System.out.println("• Chave está na lista negra (+100)");
+            }
+            if (!devolucao.isEmpty() && !chave.equals(devolucao)) {
+                System.out.println("• Chave de devolução diferente (+50)");
+            }
+            if (tipo.equalsIgnoreCase("ALEATORIA")) {
+                System.out.println("• Tipo aleatória (+40)");
+            }
+            if (status.equalsIgnoreCase("novo") || status.equalsIgnoreCase("incomum")) {
+                System.out.println("• Destinatário novo/incomum (+30)");
+            }
+            if (valor > 5000.0) {
+                System.out.println("• Valor acima de R$ 5000 (+20)");
+            }
+            if (horarioSuspeito()) {
+                System.out.println("• Horário suspeito (entre 18:01 e 05:59) (+10)");
+            }
+            if (deveBloquear(pontuacao)) {
+                System.out.println("\n>>> ALERTA: TRANSFERÊNCIA BLOQUEADA!");
+
+                System.out.println("\n POSSÍVEL FRAUDE DETECTADA!");
+                System.out.println("Antes de continuar, LIGUE imediatamente para a Central de Atendimento:");
+                System.out.println(" 0800-123-4567");
+                System.out.println("Nunca prossiga caso alguém esteja pedindo pressa ou ameaça.");
+            } else {
+                System.out.println("\n>>> Transferência AUTORIZADA.");
+            }
+            System.out.println("\nDeseja analisar outra transação? (1 = sim / 0 = não)");
+            continuar = Integer.parseInt(entrada.nextLine());
+        } while (continuar == 1);
+        System.out.println("\nSistema encerrado. Obrigado!");
+        entrada.close();
+    }
+}
